@@ -1,4 +1,4 @@
-package scalacoin
+package scalacoin.crypto
 
 import java.security.MessageDigest
 

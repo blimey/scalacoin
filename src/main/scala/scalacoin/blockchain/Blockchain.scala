@@ -1,13 +1,12 @@
-package scalacoin
-
-import Sha256._
+package scalacoin.blockchain
 
 case class Block(index: Long, previousHash: String, timestamp: Long, data: String)
 
 object Block {
-  def hash(block: Block): String = {
-    digest(s"$block.index$block.previousHash$block.timestamp$block.data")
-  }
+  import scalacoin.crypto._
+
+  def hash(block: Block): String =
+    Sha256.digest(s"$block.index$block.previousHash$block.timestamp$block.data")
 
   def isValidBlock(block: Block, previousBlock: Block) =
     block.index == previousBlock.index + 1 && block.previousHash == hash(previousBlock)
