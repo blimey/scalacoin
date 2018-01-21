@@ -16,7 +16,7 @@ import io.circe.generic.auto._
 import scalacoin.blockchain._
 
 object Server extends FailFastCirceSupport {
-  val chain: Blockchain = Blockchain()
+  var blockchain: Blockchain = Blockchain()
 
   def main(args: Array[String]) {
     implicit val system: ActorSystem = ActorSystem("scalacoin-actor-system")
@@ -35,10 +35,18 @@ object Server extends FailFastCirceSupport {
       .onComplete(_ => system.terminate()) // and shutdown when done
   }
 
-  private def routes(implicit mat: ActorMaterializer) = {
-    path("blockchain") {
-      get {
-        complete { chain }
+  private def routes = {
+    get {
+      path("blockchain") {
+        complete { blockchain }
+      }
+    } ~
+    post {
+      path("mine") {
+        entity(as[String]) { data =>
+          blockchain = blockchain.addBlock(data)
+          complete { blockchain.lastBlock }
+        }
       }
     }
   }

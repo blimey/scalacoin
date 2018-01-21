@@ -22,7 +22,7 @@ class Blockchain(val blocks: List[Block]) {
 
   def isValid: Boolean = isValidChain(blocks)
 
-  def addBlock(data: String): Either[Exception, Blockchain] = addBlock(createNextBlock(data))
+  def addBlock(data: String): Blockchain = new Blockchain(createNextBlock(data) :: blocks)
 
   def addBlock(block: Block): Either[Exception, Blockchain] =
     if (isValidBlock(block, lastBlock)) Right(new Blockchain(block :: blocks))
