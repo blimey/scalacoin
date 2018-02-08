@@ -7,6 +7,7 @@ import scalacoin.blockchain._
 class BlockchainActor extends Actor {
   import BlockchainActor._
 
+  // TODO: Still mutating state with a var here. Migrate to use context.become()
   var blockchain: Blockchain = Blockchain()
 
   def receive: Receive = {
