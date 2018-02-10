@@ -6,6 +6,7 @@ import akka.http.scaladsl.Http
 import akka.http.scaladsl.marshalling.ToResponseMarshallable
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.server.Directives._
+import akka.http.scaladsl.model.StatusCodes
 import akka.pattern.ask
 import akka.util.Timeout
 
@@ -18,7 +19,7 @@ import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import io.circe.generic.auto._
 
 import scalacoin.blockchain._
-import scalacoin.restapi.BlockchainActor.{RequestBlockchain, RequestAddBlock, ResponseBlockchain, ResponseAddBlock}
+import scalacoin.restapi.BlockchainActor.{GetBlockchain, GetLastBlock, AddBlock}
 
 object Server extends FailFastCirceSupport {
   implicit val system: ActorSystem = ActorSystem("scalacoin-actor-system")
@@ -26,7 +27,7 @@ object Server extends FailFastCirceSupport {
 
   implicit val exectutionContext: ExecutionContext = system.dispatcher
 
-  val blockchainActor = system.actorOf(Props[BlockchainActor], "blockchain")
+  val blockchainActor = system.actorOf(BlockchainActor.props, "blockchainActor")
 
   def main(args: Array[String]) {
     val bindingFuture = Http().bindAndHandle(routes, "localhost", 8080)
@@ -44,16 +45,20 @@ object Server extends FailFastCirceSupport {
     get {
       path("blockchain") {
         implicit val timeout: Timeout = 5.seconds
-        val chain: Future[ResponseBlockchain] = (blockchainActor ? RequestBlockchain).mapTo[ResponseBlockchain]
+        val chain: Future[Blockchain] = (blockchainActor ? GetBlockchain).mapTo[Blockchain]
         complete { chain }
+      } ~
+      path("lastBlock") {
+        implicit val timeout: Timeout = 5.seconds
+        val block: Future[Block] = (blockchainActor ? GetLastBlock).mapTo[Block]
+        complete { block }
       }
     } ~
     post {
-      path("mine") {
+      path("addBlock") {
         entity(as[String]) { data =>
-          implicit val timeout: Timeout = 5.seconds
-          val block: Future[ResponseAddBlock] = (blockchainActor ? RequestAddBlock(data)).mapTo[ResponseAddBlock]
-          complete { block }
+          blockchainActor ! AddBlock(data)
+          complete((StatusCodes.Created, "Block added successfully."))
         }
       }
     }
