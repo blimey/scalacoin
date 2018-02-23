@@ -22,7 +22,7 @@ import com.typesafe.config.ConfigFactory
 
 import scalacoin.blockchain._
 import scalacoin.network.BlockchainNodeActor
-import scalacoin.network.BlockchainNodeActor.{GetBlockchain, GetLastBlock, GetPeers, AddBlock, ResolvePeer, Peers}
+import scalacoin.network.BlockchainNodeActor.{GetLatestBlockchain, GetLatestBlock, GetPeers, MineBlock, LatestBlockchain, LatestBlock, ResolvePeer, Peers}
 
 object ScalacoinApp extends FailFastCirceSupport {
   implicit val system: ActorSystem = ActorSystem("scalacoin-actor-system")
@@ -51,11 +51,11 @@ object ScalacoinApp extends FailFastCirceSupport {
   private def routes = {
     get {
       path("blockchain") {
-        val chain: Future[Blockchain] = (blockchainNode ? GetBlockchain).mapTo[Blockchain]
+        val chain: Future[LatestBlockchain] = (blockchainNode ? GetLatestBlockchain).mapTo[LatestBlockchain]
         complete { chain }
       } ~
       path("lastBlock") {
-        val block: Future[Block] = (blockchainNode ? GetLastBlock).mapTo[Block]
+        val block: Future[LatestBlock] = (blockchainNode ? GetLatestBlock).mapTo[LatestBlock]
         complete { block }
       } ~
       path("peers") {
@@ -64,10 +64,10 @@ object ScalacoinApp extends FailFastCirceSupport {
       }
     } ~
     post {
-      path("addBlock") {
+      path("mineBlock") {
         entity(as[String]) { data =>
-          blockchainNode ! AddBlock(data)
-          complete((StatusCodes.Created, "Block added successfully."))
+          blockchainNode ! MineBlock(data)
+          complete((StatusCodes.Created, "Block mined successfully."))
         }
       } ~
       path("addPeer") {

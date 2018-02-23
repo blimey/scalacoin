@@ -4,7 +4,7 @@ import cats.syntax.either._
 
 case class Block(index: Long, previousHash: String, timestamp: Long, data: String)
 
-object GenesisBlock extends Block(0, "0", System.currentTimeMillis / 1000, "Genesis Block")
+object GenesisBlock extends Block(0, "0", 1514764800, "Genesis Block")
 
 object Block {
   import scalacoin.crypto._
@@ -32,6 +32,12 @@ class Blockchain(val blocks: List[Block]) {
     val previousBlock = lastBlock
     Block(previousBlock.index + 1, hash(previousBlock), System.currentTimeMillis / 1000, data)
   }
+
+  def replaceWith(newBlocks: List[Block]): Either[Exception, Blockchain] =
+    if (isValidChain(blocks) && newBlocks.length > blocks.length) Right(new Blockchain(blocks))
+    else Left(new IllegalArgumentException("Invalid chain specified."))
+
+  def replaceWith(chain: Blockchain): Either[Exception, Blockchain] = replaceWith(chain.blocks)
 }
 
 object Blockchain {

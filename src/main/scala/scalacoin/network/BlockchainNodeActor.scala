@@ -19,9 +19,34 @@ class BlockchainNodeActor extends Actor {
   def receive = active(BlockchainNodeState(Blockchain(), Set()))
 
   def active(state: BlockchainNodeState): Receive = {
-    case GetBlockchain => sender() ! state.chain
-    case GetLastBlock => sender() ! state.chain.lastBlock
-    case AddBlock(data) => context become active(state.copy(chain = state.chain.addBlock(data)))
+    case GetLatestBlockchain => sender() ! LatestBlockchain(state.chain)
+    case GetLatestBlock => sender() ! LatestBlock(state.chain.lastBlock)
+    case MineBlock(data) =>
+      context become active(state.copy(chain = state.chain.addBlock(data)))
+      self ! BroadcastLatestBlock
+    case LatestBlock(block) if block.index <= state.chain.lastBlock.index => {} // Last block index greater then received, Do nothing
+    case LatestBlock(block) if block.previousHash == Block.hash(state.chain.lastBlock) =>
+      // Last block hash matches received block previous hash, try add received block to local blockchain
+      state.chain.addBlock(block) match {
+        case Right(blockchain) => 
+          context become active(state.copy(chain = blockchain))
+          self ! BroadcastLatestBlock
+        case Left(error) => {} // Do nothing
+      }
+    case LatestBlock(_) =>
+      // Received block index higher than last block but hashes mismatch, request full blockchain to peers
+      state.peers.foreach(_ ! GetLatestBlockchain)
+    case LatestBlockchain(chain) =>
+      // Received blockchain, try to replace local one
+      state.chain.replaceWith(chain) match {
+        case Right(blockchain) =>
+          context become active(state.copy(chain = blockchain))
+          self ! BroadcastLatestBlock
+        case Left(error) => {}  // Do nothing
+      }
+    case BroadcastLatestBlock =>
+      // Broadcast last block in the local chain
+      state.peers.foreach(_ ! LatestBlock(state.chain.lastBlock))
 
     case GetPeers =>
       sender() ! Peers(state.peers.toList.map(_.path.toSerializationFormat))
@@ -55,9 +80,12 @@ class BlockchainNodeActor extends Actor {
 object BlockchainNodeActor {
   def props: Props = Props[BlockchainNodeActor]
 
-  case object GetBlockchain
-  case object GetLastBlock
-  final case class AddBlock(data: String)
+  case object GetLatestBlockchain
+  case object GetLatestBlock
+  final case class LatestBlock(block: Block)
+  final case class LatestBlockchain(blockchain: Blockchain)
+  final case class MineBlock(data: String)
+  case object BroadcastLatestBlock
 
   case object GetPeers
   final case class Peers(peers: List[String])
