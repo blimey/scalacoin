@@ -22,7 +22,7 @@ import com.typesafe.config.ConfigFactory
 
 import scalacoin.blockchain._
 import scalacoin.network.BlockchainNodeActor
-import scalacoin.network.BlockchainNodeActor.{GetBlockchain, GetLastBlock, GetPeers, AddBlock, AddPeer, Peers}
+import scalacoin.network.BlockchainNodeActor.{GetBlockchain, GetLastBlock, GetPeers, AddBlock, ResolvePeer, Peers}
 
 object ScalacoinApp extends FailFastCirceSupport {
   implicit val system: ActorSystem = ActorSystem("scalacoin-actor-system")
@@ -72,7 +72,7 @@ object ScalacoinApp extends FailFastCirceSupport {
       } ~
       path("addPeer") {
         entity(as[String]) { data =>
-          blockchainNode ! AddPeer(data)
+          blockchainNode ! ResolvePeer(data)
           complete((StatusCodes.Accepted, "Peer added successfully."))
         }
       }

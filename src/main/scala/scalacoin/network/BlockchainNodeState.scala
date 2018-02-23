@@ -4,4 +4,4 @@ import akka.actor.ActorRef
 
 import scalacoin.blockchain._
 
-case class BlockchainNodeState(chain: Blockchain, peers: List[ActorRef])
+case class BlockchainNodeState(chain: Blockchain, peers: Set[ActorRef])
