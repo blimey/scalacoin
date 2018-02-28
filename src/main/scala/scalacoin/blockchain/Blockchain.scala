@@ -18,7 +18,7 @@ object Block {
     Sha256.digest(s"$index:$previousHash:$timestamp:$data:$difficulty:$nonce")
 }
 
-class Blockchain(val blocks: List[Block]) {
+class Blockchain private(val blocks: List[Block]) {
   import Block._
   import Blockchain._
 
@@ -94,10 +94,6 @@ object Blockchain {
 
   def apply(): Blockchain = new Blockchain(List(GenesisBlock))
 
-  def apply(blocks: List[Block]): Either[Exception, Blockchain] =
-    if (isValidChain(blocks)) Right(new Blockchain(blocks))
-    else Left(new IllegalArgumentException("Invalid chain specified."))
-
   def isValidBlock(block: Block, previousBlock: Block) =
     block.index == previousBlock.index + 1 && 
       block.previousHash == previousBlock.hash &&
@@ -113,4 +109,24 @@ object Blockchain {
   def chainAccumulatedDifficulty(blocks: List[Block]): Int = blocks.map(_.difficulty).map(pow(2, _)).sum.toInt
 
   def currentTimestamp: Long = System.currentTimeMillis / 1000
+
+  object Implicits {
+    import io.circe.{ Decoder, Encoder, HCursor, Json, DecodingFailure }
+    import io.circe.generic.semiauto._
+    import io.circe.syntax._
+
+    implicit val blockDecoder: Decoder[Block] = deriveDecoder
+    implicit val blockEncoder: Encoder[Block] = deriveEncoder
+
+    implicit val blockchainEncoder: Encoder[Blockchain] = new Encoder[Blockchain] {
+      final def apply(a: Blockchain): Json = Json.obj(("blocks", Json.fromValues(a.blocks.map(_.asJson))))
+    }
+
+    implicit val blockchainDecoder: Decoder[Blockchain] = new Decoder[Blockchain] {
+      final def apply(c: HCursor): Decoder.Result[Blockchain] =
+        for {
+          parsedBlocks <- c.downField("blocks").as[List[Block]]
+        } yield new Blockchain(parsedBlocks)
+    }
+  }
 }

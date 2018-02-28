@@ -21,6 +21,7 @@ import io.circe.generic.auto._
 import com.typesafe.config.ConfigFactory
 
 import scalacoin.blockchain._
+import scalacoin.blockchain.Blockchain.Implicits._
 import scalacoin.network.BlockchainNodeActor
 import scalacoin.network.BlockchainNodeActor.{GetBlockchain, GetLastBlock, GetPeers, MineBlock, CurrentBlockchain, LastBlock, ResolvePeer, Peers}
 
