@@ -22,17 +22,17 @@ import com.typesafe.config.ConfigFactory
 
 import scalacoin.blockchain._
 import scalacoin.blockchain.Blockchain.Implicits._
-import scalacoin.network.BlockchainNodeActor
-import scalacoin.network.BlockchainNodeActor.{GetBlockchain, GetLastBlock, GetPeers, MineBlock, CurrentBlockchain, LastBlock, ResolvePeer, Peers}
+import scalacoin.network.BlockchainActor
+import scalacoin.network.BlockchainActor.{GetBlockchain, GetLastBlock, GetPeers, MineBlock, CurrentBlockchain, LastBlock, ResolvePeer, Peers}
 
-object ScalacoinApp extends FailFastCirceSupport {
+object Node extends FailFastCirceSupport {
   implicit val system: ActorSystem = ActorSystem("scalacoin-actor-system")
   implicit val materializer: ActorMaterializer = ActorMaterializer()
   implicit val exectutionContext: ExecutionContext = system.dispatcher
 
   implicit val timeout: Timeout = 5.seconds
 
-  val blockchainNode = system.actorOf(BlockchainNodeActor.props, "blockchainNode")
+  val blockchainActor = system.actorOf(BlockchainActor.props, "blockchain-actor")
 
   val config = ConfigFactory.load()
   val interface = config.getString("http.interface")
@@ -52,28 +52,28 @@ object ScalacoinApp extends FailFastCirceSupport {
   private def routes = {
     get {
       path("blockchain") {
-        val chain: Future[CurrentBlockchain] = (blockchainNode ? GetBlockchain).mapTo[CurrentBlockchain]
+        val chain: Future[CurrentBlockchain] = (blockchainActor ? GetBlockchain).mapTo[CurrentBlockchain]
         complete { chain }
       } ~
       path("lastBlock") {
-        val block: Future[LastBlock] = (blockchainNode ? GetLastBlock).mapTo[LastBlock]
+        val block: Future[LastBlock] = (blockchainActor ? GetLastBlock).mapTo[LastBlock]
         complete { block }
       } ~
       path("peers") {
-        val peers: Future[Peers] = (blockchainNode ? GetPeers).mapTo[Peers]
+        val peers: Future[Peers] = (blockchainActor ? GetPeers).mapTo[Peers]
         complete { peers }
       }
     } ~
     post {
       path("mineBlock") {
         entity(as[String]) { data =>
-          blockchainNode ! MineBlock(data)
+          blockchainActor ! MineBlock(data)
           complete((StatusCodes.Created, "Block mined successfully."))
         }
       } ~
       path("addPeer") {
         entity(as[String]) { data =>
-          blockchainNode ! ResolvePeer(data)
+          blockchainActor ! ResolvePeer(data)
           complete((StatusCodes.Accepted, "Peer added successfully."))
         }
       }

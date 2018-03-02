@@ -4,41 +4,51 @@ import scala.math.{pow, max}
 
 import cats.syntax.either._
 
-case class Block(index: Long, hash: String, previousHash: String, timestamp: Long, data: String, difficulty: Int, nonce: Int)
+import scalacoin.crypto._
+
+case class Block(index: Long, hash: String, previousHash: String, timestamp: Long, data: String, difficulty: Long, nonce: Long)
 
 object GenesisBlock extends Block(0, "a80681a5f23898676719ba5ecee32621c9e8844088173a7d3178f2165e5ca57d", "", 1514764800, "Genesis Block", 0, 0)
 
-object Block {
-  import scalacoin.crypto._
+case class Blockchain private (blocks: List[Block])
 
-  def hash(block: Block): String =
-    hash(block.index, block.previousHash, block.timestamp, block.data, block.difficulty, block.nonce)
+object Blockchain {
+  val BlockGenerationIntervalInSecs: Int = 10
+  val DifficultyAdjustmentIntervalInBlocks: Int = 10
 
-  def hash(index: Long, previousHash: String, timestamp: Long, data: String, difficulty: Int, nonce: Int): String =
-    Sha256.digest(s"$index:$previousHash:$timestamp:$data:$difficulty:$nonce")
-}
+  def apply(): Blockchain = new Blockchain(List(GenesisBlock))
 
-class Blockchain private(val blocks: List[Block]) {
-  import Block._
-  import Blockchain._
+  // Make this constructor private so caller can't instantiate invalid blockchains
+  private def apply(blocks: List[Block]): Blockchain = new Blockchain(blocks)
 
-  def lastBlock: Block = blocks.head
+  def isValidBlock(block: Block, previousBlock: Block) =
+    block.index == previousBlock.index + 1 && 
+      block.previousHash == previousBlock.hash &&
+      isValidTimestampForBlock(block, previousBlock) &&
+      block.hash == hashForBlock(block)
 
-  def isValid: Boolean = isValidChain(blocks)
+  def hashForBlock(block: Block): String =
+    hashForBlock(block.index, block.previousHash, block.timestamp, block.data, block.difficulty, block.nonce)
 
-  def addBlock(data: String): Blockchain = new Blockchain(createNextBlock(data) :: blocks)
+  def lastBlock(chain: Blockchain): Block = chain.blocks.head
 
-  def addBlock(block: Block): Either[Exception, Blockchain] =
-    if (isValidBlock(block, lastBlock)) Right(new Blockchain(block :: blocks))
-    else Left(new IllegalArgumentException("Invalid block added."))
+  def addBlock(chain: Blockchain, data: String): Blockchain = Blockchain(generateNextBlock(chain, data) :: chain.blocks)
 
-  def createNextBlock(data: String): Block = {
-    val index = lastBlock.index + 1
-    val previousHash = lastBlock.hash
-    val timestamp = currentTimestamp
-    val difficulty = currentDifficulty
+  def addBlock(chain: Blockchain, block: Block): Blockchain = 
+    if (isValidBlock(block, lastBlock(chain))) Blockchain(block :: chain.blocks)
+    else chain
 
-    def hashMatchesDifficulty(hash: String, difficulty: Int): Boolean = {
+  def isValidTimestampForBlock(block: Block, previousBlock: Block) =
+    previousBlock.timestamp - 60 < block.timestamp && block.timestamp - 60 < currentTimestamp
+
+  def generateNextBlock(chain: Blockchain, data: String): Block = {
+    val previousBlock: Block = lastBlock(chain)
+    val index: Long = previousBlock.index + 1
+    val previousHash: String = previousBlock.hash
+    val timestamp: Long = currentTimestamp
+    val difficulty: Long = currentDifficulty(chain)
+
+    def hashMatchesDifficulty(hash: String, difficulty: Long): Boolean = {
       // Quick and dirty solution (TODO: improve this):
       // Hash parameter is a 64 character string that 
       // converted in binary should be a 256 character long string.
@@ -48,8 +58,8 @@ class Blockchain private(val blocks: List[Block]) {
     }
 
     @annotation.tailrec
-    def proofOfWork(nonce: Int): (String, Int) = {
-      val candidateHash = hash(index, previousHash, timestamp, data, difficulty, nonce)
+    def proofOfWork(nonce: Long): (String, Long) = {
+      val candidateHash = hashForBlock(index, previousHash, timestamp, data, difficulty, nonce)
       if (hashMatchesDifficulty(candidateHash, difficulty)) (candidateHash, nonce)
       else proofOfWork(nonce + 1)
     }
@@ -59,59 +69,47 @@ class Blockchain private(val blocks: List[Block]) {
     Block(index, successfulHash, previousHash, timestamp, data, difficulty, nonce)
   }
 
-  def replaceWith(newBlocks: List[Block]): Either[Exception, Blockchain] =
-    if (isValidChain(newBlocks) && chainAccumulatedDifficulty(newBlocks) > chainAccumulatedDifficulty(blocks))
-      Right(new Blockchain(newBlocks))
-    else Left(new IllegalArgumentException("Invalid chain specified."))
-
-  def replaceWith(chain: Blockchain): Either[Exception, Blockchain] = replaceWith(chain.blocks)
-
-  def currentDifficulty: Int = {
-    if (lastBlock.index % DifficultyAdjustmentIntervalInBlocks == 0 && lastBlock.index != 0) adjustedDifficulty
-    else lastBlock.difficulty
+  def currentDifficulty(chain: Blockchain): Long = {
+    val block: Block = lastBlock(chain)
+    if (block.index % DifficultyAdjustmentIntervalInBlocks == 0 && block.index != 0) adjustedDifficulty(chain)
+    else block.difficulty
   }
 
-  def adjustedDifficulty: Int = {
-    val lastAdjustmentBlock: Block = blocks.lift(DifficultyAdjustmentIntervalInBlocks).getOrElse(GenesisBlock)
+  def adjustedDifficulty(chain: Blockchain): Long = {
+    val block: Block = lastBlock(chain)
+    val lastAdjustmentBlock: Block = chain.blocks.lift(DifficultyAdjustmentIntervalInBlocks).getOrElse(GenesisBlock)
     val timeExpectedInSecs: Long = BlockGenerationIntervalInSecs * DifficultyAdjustmentIntervalInBlocks
-    val timeTakenInSec: Long = lastBlock.timestamp - lastAdjustmentBlock.timestamp
+    val timeTakenInSec: Long = block.timestamp - lastAdjustmentBlock.timestamp
 
-    val difficulty: Int = if (timeTakenInSec < timeExpectedInSecs / 2) lastAdjustmentBlock.difficulty + 1
+    val difficulty: Long = if (timeTakenInSec < timeExpectedInSecs / 2) lastAdjustmentBlock.difficulty + 1
       else if (timeTakenInSec > timeExpectedInSecs * 2) lastAdjustmentBlock.difficulty - 1
       else lastAdjustmentBlock.difficulty
 
     max(0, difficulty)
   }
 
-  def accumulatedDifficulty: Int = chainAccumulatedDifficulty(blocks)
-}
+  def isValid(chain: Blockchain): Boolean = areValidBlocks(chain.blocks)
+    
+  def adjustedLength(chain: Blockchain): Int = chain.blocks.map(_.difficulty).map(pow(2, _)).sum.toInt
 
-object Blockchain {
-  import Block._
+  def selectLongest(b1: Blockchain, b2: Blockchain): Blockchain =
+    if (adjustedLength(b2) > adjustedLength(b1)) b2
+    else b1
 
-  val BlockGenerationIntervalInSecs: Int = 10
-  val DifficultyAdjustmentIntervalInBlocks: Int = 10
+  @annotation.tailrec
+  private def areValidBlocks(blocks: List[Block]): Boolean = blocks match {
+    case last :: Nil if last == GenesisBlock => true
+    case block :: previousBlock :: tail if isValidBlock(block, previousBlock) => areValidBlocks(previousBlock :: tail)
+    case _ => false
+  }
 
-  def apply(): Blockchain = new Blockchain(List(GenesisBlock))
+  private def hashForBlock(index: Long, previousHash: String, timestamp: Long, data: String, difficulty: Long, nonce: Long): String =
+    Sha256.digest(s"$index:$previousHash:$timestamp:$data:$difficulty:$nonce")
 
-  def isValidBlock(block: Block, previousBlock: Block) =
-    block.index == previousBlock.index + 1 && 
-      block.previousHash == previousBlock.hash &&
-      isValidTimestamp(block, previousBlock) &&
-      block.hash == hash(block)
-
-  def isValidTimestamp(block: Block, previousBlock: Block) =
-    previousBlock.timestamp - 60 < block.timestamp && block.timestamp - 60 < currentTimestamp
-
-  def isValidChain(blocks: List[Block]): Boolean =
-    blocks.zip(blocks.tail).forall { case (block, previousBlock) => isValidBlock(block, previousBlock) }
-
-  def chainAccumulatedDifficulty(blocks: List[Block]): Int = blocks.map(_.difficulty).map(pow(2, _)).sum.toInt
-
-  def currentTimestamp: Long = System.currentTimeMillis / 1000
+  private def currentTimestamp: Long = System.currentTimeMillis / 1000
 
   object Implicits {
-    import io.circe.{ Decoder, Encoder, HCursor, Json, DecodingFailure }
+    import io.circe.{ Decoder, Encoder, HCursor, Json, DecodingFailure, CursorOp }
     import io.circe.generic.semiauto._
     import io.circe.syntax._
 
@@ -124,9 +122,16 @@ object Blockchain {
 
     implicit val blockchainDecoder: Decoder[Blockchain] = new Decoder[Blockchain] {
       final def apply(c: HCursor): Decoder.Result[Blockchain] =
-        for {
+        (for {
           parsedBlocks <- c.downField("blocks").as[List[Block]]
-        } yield new Blockchain(parsedBlocks)
+        } yield parsedBlocks) match {
+          case Left(error) => Left(error)
+          case Right(blocks) =>
+            // Need to verify blocks are valid too
+            if (areValidBlocks(blocks)) Right(Blockchain(blocks))
+            else Left(DecodingFailure("Invalid blocks", List(CursorOp.Field("blocks"))))
+        }
+
     }
   }
 }
