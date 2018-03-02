@@ -9,7 +9,7 @@ import scala.concurrent.ExecutionContext
 
 import scalacoin.network.BlockchainActor
 
-object Node extends App with RestInterface {
+object ScalacoinNode extends App with RestInterface {
   import NodeConfig._
 
   implicit val system: ActorSystem = ActorSystem("scalacoin-actor-system")
