@@ -7,7 +7,7 @@ import akka.http.scaladsl.Http
 import scala.io.StdIn
 import scala.concurrent.ExecutionContext
 
-import scalacoin.network.BlockchainActor
+import scalacoin.network.P2PActor
 
 object ScalacoinNode extends App with RestInterface {
   import NodeConfig._
@@ -16,7 +16,7 @@ object ScalacoinNode extends App with RestInterface {
   implicit val materializer: ActorMaterializer = ActorMaterializer()
   implicit val executionContext: ExecutionContext = system.dispatcher
 
-  val blockchainActor = system.actorOf(BlockchainActor.props, "blockchain-actor")
+  val p2pActor = system.actorOf(P2PActor.props, "scalacoin-p2p-actor")
 
   val bindingFuture = Http().bindAndHandle(routes, httpInterface, httpPort)
   

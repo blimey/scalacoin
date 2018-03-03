@@ -15,39 +15,40 @@ import io.circe.generic.auto._
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 
 import scalacoin.blockchain.Blockchain.Implicits._
-import scalacoin.network.BlockchainActor.{GetBlockchain, GetLastBlock, GetPeers, MineBlock, CurrentBlockchain, LastBlock, ResolvePeer, Peers}
+import scalacoin.network.BlockchainActor.{GetBlockchain, GetLastBlock, MineBlock, CurrentBlockchain, LastBlock}
+import scalacoin.network.P2PActor.{GetPeers, ResolvePeer, Peers}
 
 trait RestInterface extends FailFastCirceSupport {
   implicit val executionContext: ExecutionContext
-  val blockchainActor: ActorRef
+  val p2pActor: ActorRef
 
   implicit val timeout: Timeout = 5.seconds
 
   val routes = {
     get {
       path("blockchain") {
-        val chain: Future[CurrentBlockchain] = (blockchainActor ? GetBlockchain).mapTo[CurrentBlockchain]
+        val chain: Future[CurrentBlockchain] = (p2pActor ? GetBlockchain).mapTo[CurrentBlockchain]
         complete { chain }
       } ~
       path("lastBlock") {
-        val block: Future[LastBlock] = (blockchainActor ? GetLastBlock).mapTo[LastBlock]
+        val block: Future[LastBlock] = (p2pActor ? GetLastBlock).mapTo[LastBlock]
         complete { block }
       } ~
       path("peers") {
-        val peers: Future[Peers] = (blockchainActor ? GetPeers).mapTo[Peers]
+        val peers: Future[Peers] = (p2pActor ? GetPeers).mapTo[Peers]
         complete { peers }
       }
     } ~
     post {
       path("mineBlock") {
         entity(as[String]) { data =>
-          blockchainActor ! MineBlock(data)
+          p2pActor ! MineBlock(data)
           complete((StatusCodes.Created, "Block mined successfully."))
         }
       } ~
       path("addPeer") {
         entity(as[String]) { data =>
-          blockchainActor ! ResolvePeer(data)
+          p2pActor ! ResolvePeer(data)
           complete((StatusCodes.Accepted, "Peer added successfully."))
         }
       }
