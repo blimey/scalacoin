@@ -2,9 +2,7 @@ package scalacoin.blockchain
 
 import scala.math.{pow, max}
 
-import cats.syntax.either._
-
-import scalacoin.crypto._
+import scalacoin.types._
 
 case class Block(index: Long, hash: String, previousHash: String, timestamp: Long, data: String, difficulty: Long, nonce: Long)
 
