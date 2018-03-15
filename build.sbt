@@ -1,16 +1,14 @@
-name := "scalacoin"
+import Dependencies._
 
-version := "1.0"
-
-scalaVersion := "2.12.4"
-
-scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature")
-
-libraryDependencies ++= Seq(
-  "com.typesafe.akka" %% "akka-actor" % "2.5.9",
-  "com.typesafe.akka" %% "akka-remote" % "2.5.9",
-  "com.typesafe.akka" %% "akka-http" % "10.0.11",
-  "io.circe" %% "circe-core" % "0.9.0",
-  "io.circe" %% "circe-generic" % "0.9.0",
-  "de.heikoseeberger" %% "akka-http-circe" % "1.20.0-RC1"
-)
+lazy val root = (project in file(".")).
+  settings(
+    inThisBuild(List(
+      organization := "blimey",
+      scalaVersion := "2.12.4",
+      version      := "0.1.0-SNAPSHOT"
+    )),
+    name := "Scalacoin",
+    scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature"),
+    libraryDependencies ++= Seq(akkaActor, akkaRemote, akkaHttp, circeCore, circeGeneric, akkaHttpCirce),
+    libraryDependencies += scalaTest % Test
+  )
