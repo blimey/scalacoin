@@ -102,7 +102,7 @@ object Blockchain {
   }
 
   private def hashForBlock(index: Long, previousHash: String, timestamp: Long, data: String, difficulty: Long, nonce: Long): String =
-    Sha256.digest(s"$index:$previousHash:$timestamp:$data:$difficulty:$nonce")
+    Sha256.hash(s"$index:$previousHash:$timestamp:$data:$difficulty:$nonce")
 
   private def currentTimestamp: Long = System.currentTimeMillis / 1000
 

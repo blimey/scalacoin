@@ -3,12 +3,14 @@ import Dependencies._
 lazy val root = (project in file(".")).
   settings(
     inThisBuild(List(
-      organization := "blimey",
+      organization := "org.typegrade",
+      organizationName := "Typegrade",
       scalaVersion := "2.12.4",
-      version      := "0.1.0-SNAPSHOT"
+      version      := "0.1.0"
     )),
     name := "Scalacoin",
     scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature"),
-    libraryDependencies ++= Seq(akkaActor, akkaRemote, akkaHttp, circeCore, circeGeneric, akkaHttpCirce),
+    resolvers += Resolver.bintrayRepo("matteomeli", "maven"),
+    libraryDependencies ++= Seq(glue, akkaActor, akkaRemote, akkaHttp, circeCore, circeGeneric, akkaHttpCirce),
     libraryDependencies += scalaTest % Test
   )
