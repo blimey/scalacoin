@@ -8,7 +8,6 @@ import scala.concurrent.Future
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
-import scalacoin.blockchain.Block
 import scalacoin.network.BlockchainActor._
 
 class P2PActor extends Actor {
@@ -19,9 +18,9 @@ class P2PActor extends Actor {
 
   val blockchainActor: ActorRef = context.actorOf(BlockchainActor.props(self))
 
-  def receive = active(PeerState(Set[ActorRef]()))
+  def receive = active(P2PState(Set[ActorRef]()))
 
-  def active(state: PeerState): Receive = {
+  def active(state: P2PState): Receive = {
     case GetPeers =>
       sender() ! Peers(state.peers.toList.map(_.path.toSerializationFormat))
     case Peers(peers) =>
@@ -48,11 +47,9 @@ class P2PActor extends Actor {
       }
     }
     case TerminatedPeer(peer) => context become active(state.copy(peers = state.peers - peer))
-    case BroadcastBlock(block) =>
-      state.peers.foreach(_ ! LastBlock(block))
     case QueryBlockchain =>
       state.peers.foreach(_ ! GetBlockchain)
-    case blockchainMessage @ (GetBlockchain | GetLastBlock | CurrentBlockchain(_) | LastBlock(_) | MineBlock(_)) =>
+    case blockchainMessage @ (GetBlockchain) =>
       blockchainActor forward blockchainMessage
   }
 }
@@ -68,5 +65,4 @@ object P2PActor {
   final case class ResolvePeer(address: String)
   final case class ResolvedPeer(ref: ActorRef)
   final case class TerminatedPeer(ref: ActorRef)
-  final case class BroadcastBlock(block: Block)
 }

@@ -1,5 +1,5 @@
 package scalacoin.network
 
-import scalacoin.blockchain._
+import scalacoin.mining.Miner._
 
 case class BlockchainState(chain: Blockchain)

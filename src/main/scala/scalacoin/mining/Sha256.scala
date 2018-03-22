@@ -1,4 +1,4 @@
-package scalacoin.types
+package scalacoin.mining
 
 import java.security.MessageDigest
 

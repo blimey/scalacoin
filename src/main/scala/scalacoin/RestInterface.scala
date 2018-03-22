@@ -14,8 +14,7 @@ import io.circe.generic.auto._
 
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 
-import scalacoin.blockchain.Blockchain.Implicits._
-import scalacoin.network.BlockchainActor.{GetBlockchain, GetLastBlock, MineBlock, CurrentBlockchain, LastBlock}
+import scalacoin.network.BlockchainActor.{GetBlockchain, CurrentBlockchain}
 import scalacoin.network.P2PActor.{GetPeers, ResolvePeer, Peers}
 
 trait RestInterface extends FailFastCirceSupport {
@@ -31,8 +30,7 @@ trait RestInterface extends FailFastCirceSupport {
         complete { chain }
       } ~
       path("lastBlock") {
-        val block: Future[LastBlock] = (p2pActor ? GetLastBlock).mapTo[LastBlock]
-        complete { block }
+        complete { (StatusCodes.NotFound) }
       } ~
       path("peers") {
         val peers: Future[Peers] = (p2pActor ? GetPeers).mapTo[Peers]
@@ -41,10 +39,7 @@ trait RestInterface extends FailFastCirceSupport {
     } ~
     post {
       path("mineBlock") {
-        entity(as[String]) { data =>
-          p2pActor ! MineBlock(data)
-          complete((StatusCodes.Created, "Block mined successfully."))
-        }
+        complete { (StatusCodes.NotFound) }
       } ~
       path("addPeer") {
         entity(as[String]) { data =>
