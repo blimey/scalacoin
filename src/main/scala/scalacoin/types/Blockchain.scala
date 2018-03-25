@@ -1,7 +1,7 @@
 package scalacoin.types
 
 import glue._
-import Glue._
+import glue.prelude._
 
 import scala.language.higherKinds
 

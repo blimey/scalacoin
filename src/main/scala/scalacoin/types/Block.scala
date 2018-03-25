@@ -3,7 +3,7 @@ package scalacoin.types
 import scalacoin.mining.Miner.Account
 
 import glue._
-import Glue._
+import glue.prelude._
 
 case class BlockHeader(miner: Account, parentHash: String, nonce: Int, timestamp: Long)
 
@@ -11,7 +11,7 @@ case class Block[A](transactions: List[A])
 
 object Block {
   implicit def blockIsMonoid[A]: Monoid[Block[A]] = new Monoid[Block[A]] {
-    def unit: Block[A] = Block(List.empty)
+    val unit: Block[A] = Block(List.empty)
     def combine(b1: Block[A], b2: Block[A]): Block[A] = Block(b1.transactions ++ b2.transactions)
   }
 

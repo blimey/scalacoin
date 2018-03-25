@@ -4,7 +4,7 @@ import scalacoin.types._
 import scalacoin.types.{Blockchain => BlockchainF}
 
 import glue._
-import Glue._
+import glue.prelude._
 
 import scala.math.{min, round}
 import scala.util.Try

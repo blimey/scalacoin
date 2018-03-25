@@ -1,7 +1,7 @@
 import sbt._
 
 object Dependencies {
-  lazy val glue = "org.typegrade" %% "glue" % "0.1.1"
+  lazy val glue = "org.typegrade" %% "glue" % "0.1.2"
 
   lazy val akkaActor = "com.typesafe.akka" %% "akka-actor" % "2.5.9"
   lazy val akkaRemote = "com.typesafe.akka" %% "akka-remote" % "2.5.9"
