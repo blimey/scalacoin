@@ -1,4 +1,4 @@
-package scalacoin
+package scalacoin.network
 
 import akka.actor.ActorRef
 import akka.http.scaladsl.server.Directives._
@@ -14,26 +14,26 @@ import io.circe.generic.auto._
 
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 
-import scalacoin.network.BlockchainActor.{GetBlockchain, CurrentBlockchain}
-import scalacoin.network.P2PActor.{GetPeers, ResolvePeer, Peers}
+import scalacoin.network.ServerActor.{ReqFullBlockchain, ReqListPeers, ReqRegisterPeer}
+import scalacoin.network.ServerActor.{ResFullBlockchain, ResListPeers}
 
-trait RestInterface extends FailFastCirceSupport {
+trait ServerInterface extends FailFastCirceSupport {
   implicit val executionContext: ExecutionContext
-  val p2pActor: ActorRef
+  val actor: ActorRef
 
   implicit val timeout: Timeout = 5.seconds
 
   val routes = {
     get {
       path("blockchain") {
-        val chain: Future[CurrentBlockchain] = (p2pActor ? GetBlockchain).mapTo[CurrentBlockchain]
+        val chain: Future[ResFullBlockchain] = (actor ? ReqFullBlockchain).mapTo[ResFullBlockchain]
         complete { chain }
       } ~
       path("lastBlock") {
         complete { (StatusCodes.NotFound) }
       } ~
       path("peers") {
-        val peers: Future[Peers] = (p2pActor ? GetPeers).mapTo[Peers]
+        val peers: Future[ResListPeers] = (actor ? ReqListPeers).mapTo[ResListPeers]
         complete { peers }
       }
     } ~
@@ -41,9 +41,9 @@ trait RestInterface extends FailFastCirceSupport {
       path("mineBlock") {
         complete { (StatusCodes.NotFound) }
       } ~
-      path("addPeer") {
+      path("registerPeer") {
         entity(as[String]) { data =>
-          p2pActor ! ResolvePeer(data)
+          actor ! ReqRegisterPeer(data)
           complete((StatusCodes.Accepted, "Peer added successfully."))
         }
       }

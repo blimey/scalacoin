@@ -17,26 +17,25 @@ object Miner {
   val TransactionLimit: Int = 1000
 
   val BlockMiningReward: Int = 1000
-  val BlockMiningTargetTime: Double = 10.0 // seconds
+  val BlockMiningTargetTimeInSecs: Double = 10.0
 
-  val NumBlocksBeforeDifficultyAdjustment: Int = 100
-  val DefaultDifficulty: BigInt = BigInt("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", 16)  // 64 byte
+  val NumBlocksBeforeDifficultyAdjustment: Int = 10
+  val DefaultDifficulty: BigInt = BigInt("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", 16)  // 64 bytes
 
   def mineOn(pendingTransactions: List[Transaction], minerAccount: Account, parent: Blockchain): Blockchain = {
     val transactions: List[Transaction] = validTransactions(parent, pendingTransactions).take(TransactionLimit)
     val desiredDiff = desiredDifficulty(parent)
 
     @annotation.tailrec
-    def loop(nonce: Int): Blockchain = {
-      val now: Long = System.currentTimeMillis / 1000
-      val header: BlockHeader = BlockHeader(minerAccount, hash(parent), nonce, now)
+    def loop(timestamp: Long, nonce: Int): Blockchain = {
+      val header: BlockHeader = BlockHeader(minerAccount, hash(parent), nonce, timestamp)
       val block: Block[Transaction] = Block(transactions)
       val candidate: Blockchain = Node(block, header, parent)
       if (difficulty(candidate) < desiredDiff) candidate
-      else loop(nonce + 1)
+      else loop(timestamp, nonce + 1)
     }
 
-    loop(0)
+    loop(System.currentTimeMillis / 1000, 0)
   }
 
   def makeGenesis: Blockchain = Genesis(Block(List.empty))
@@ -71,7 +70,7 @@ object Miner {
       case x @ Node(_, _, xs) => {
         val oldDesiredDifficulty: BigDecimal = loop(xs)
         val blockTimeAvg: BigDecimal = blockTimeAverage(x)
-        val adjustmentFactor: BigDecimal = BigDecimal(4.0).min(if (blockTimeAvg == 0) BlockMiningTargetTime else BlockMiningTargetTime / blockTimeAvg)
+        val adjustmentFactor: BigDecimal = BigDecimal(4.0).min(if (blockTimeAvg == 0) BlockMiningTargetTimeInSecs else BlockMiningTargetTimeInSecs / blockTimeAvg)
         oldDesiredDifficulty / adjustmentFactor
       }
     }

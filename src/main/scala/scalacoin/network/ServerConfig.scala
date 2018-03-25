@@ -1,8 +1,8 @@
-package scalacoin
+package scalacoin.network
 
 import com.typesafe.config.ConfigFactory
 
-object NodeConfig {
+object ServerConfig {
   val config = ConfigFactory.load()
 
   val httpInterface = config.getString("http.interface")
