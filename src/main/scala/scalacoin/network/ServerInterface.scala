@@ -14,8 +14,7 @@ import io.circe.generic.auto._
 
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 
-import scalacoin.network.ServerActor.{ReqFullBlockchain, ReqListPeers, ReqRegisterPeer}
-import scalacoin.network.ServerActor.{ResFullBlockchain, ResListPeers}
+import scalacoin.network.ServerActor._
 
 trait ServerInterface extends FailFastCirceSupport {
   implicit val executionContext: ExecutionContext

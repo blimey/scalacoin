@@ -12,7 +12,8 @@ import scala.util.Try
 object Miner {
   type Account = Int
 
-  type Blockchain = BlockchainF[Block[Transaction]]
+  type Block = BlockF[Transaction]
+  type Blockchain = BlockchainF[Block]
 
   val TransactionLimit: Int = 1000
 
@@ -29,7 +30,7 @@ object Miner {
     @annotation.tailrec
     def loop(timestamp: Long, nonce: Int): Blockchain = {
       val header: BlockHeader = BlockHeader(minerAccount, hash(parent), nonce, timestamp)
-      val block: Block[Transaction] = Block(transactions)
+      val block: Block = BlockF(transactions)
       val candidate: Blockchain = Node(block, header, parent)
       if (difficulty(candidate) < desiredDiff) candidate
       else loop(timestamp, nonce + 1)
@@ -38,7 +39,7 @@ object Miner {
     loop(System.currentTimeMillis / 1000, 0)
   }
 
-  def makeGenesis: Blockchain = Genesis(Block(List.empty))
+  def makeGenesis: Blockchain = Genesis(BlockF(List.empty))
 
   def balances(bc: Blockchain): Map[Account, Int] = {
     val txns: List[Transaction] = transactions(bc)
@@ -105,6 +106,14 @@ object Miner {
 
     loop(bc, List.empty)
   }
+
+  def addBlock(block: Block, header: BlockHeader, bc: Blockchain): Blockchain = Node(block, header, bc)
+
+  def isValidChain(bc: Blockchain): Boolean = true
+
+  def isValidBlock(block: Block, header: BlockHeader, bc: Blockchain): Boolean = true
+
+  def isValidTransaction(bc: Blockchain, t: Transaction): Boolean = true
 
   // This is not stack safe, avoid usage, only for illustration purpouses
   def zipWith[A, B, C](as: List[A], bs: List[B])(f: (A, B) => C): List[C] = (as, bs) match {

@@ -10,6 +10,7 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
 import scalacoin.mining.Miner._
+import scalacoin.types.{BlockHeader, Transaction}
 
 class ServerActor extends Actor {
   import ServerActor._
@@ -17,16 +18,31 @@ class ServerActor extends Actor {
   implicit val timeout: Timeout = 5.seconds
   implicit val executionContext: ExecutionContext = context.dispatcher
 
-  def receive = active(ServerState(makeGenesis, Set.empty, List.empty))
+  def receive = active(ServerState(makeGenesis, Set.empty, Set.empty))
 
   def active(state: ServerState): Receive = {
     case ReqFullBlockchain => sender() ! ResFullBlockchain(state.longestChain)
 
-    case ReqListPeers =>
-      sender() ! ResListPeers(state.peers.toList.map(_.path.toSerializationFormat))
+    case ReqListTransactions => sender() ! ResListTransactions(state.transactionPool.toList)
+
+    case ReqNewTransaction(transaction) =>
+      if (isValidTransaction(state.longestChain, transaction)) {
+        context become active(state.copy(transactionPool = state.transactionPool + transaction))
+      }
+      ResNewTransaction
+
+    case ReqNewBlock(block, header) =>
+      val bc: Blockchain = state.longestChain
+      if (isValidChain(bc) && isValidBlock(block, header, bc)) {
+        context become active(state.copy(longestChain = addBlock(block, header, state.longestChain)))
+      }
+      ResNewBLock
+
+    case ReqListPeers => sender() ! ResListPeers(peerAddresses(state.peers))
 
     case ReqHandshake =>
       context become active(state.copy(peers = state.peers + sender()))
+      ResHandshake
     
     case ReqRegisterPeer(address) =>
       context.actorSelection(address).resolveOne().map { resolvedPeer =>
@@ -36,8 +52,8 @@ class ServerActor extends Actor {
           // Introduce ourselves
           resolvedPeer ! ReqHandshake
 
-          // Ask for peers
-          resolvedPeer ! ReqListPeers
+          // Ask for sharing peers
+          resolvedPeer ! ReqSharePeers
 
           // Tell our peers
           state.peers.foreach(_ ! ReqRegisterPeer(resolvedPeer.path.toSerializationFormat))
@@ -46,22 +62,40 @@ class ServerActor extends Actor {
           context become active(state.copy(peers = state.peers + resolvedPeer))
         }
       } pipeTo self
+      ResRegisterPeer
 
-    case ResListPeers(peers) => peers.foreach(self ! ReqRegisterPeer(_))
+    case ReqSharePeers =>
+      peerAddresses(state.peers).foreach(sender() ! ReqRegisterPeer(_))
+      ResSharePeers
     
-    case ReqTerminatePeer(peer) => context become active(state.copy(peers = state.peers - peer))
+    case ReqTerminatePeer(peer) =>
+      context become active(state.copy(peers = state.peers - peer))
+      ResTerminatePeer
   }
+
+  def peerAddresses(peers: Set[ActorRef]): List[String] = peers.toList.map(_.path.toSerializationFormat)
 }
 
 object ServerActor {
   def props: Props = Props[ServerActor]
 
-  final case object ReqFullBlockchain
-  final case object ReqListPeers
-  final case class ReqRegisterPeer(address: String)
-  final case object ReqHandshake
-  final case class ReqTerminatePeer(ref: ActorRef)
+  case object ReqFullBlockchain
+  case object ReqListTransactions
+  case class ReqNewTransaction(transaction: Transaction)
+  case class ReqNewBlock(block: Block, header: BlockHeader)
+  case object ReqListPeers
+  case object ReqHandshake
+  case object ReqSharePeers
+  case class ReqRegisterPeer(address: String)
+  case class ReqTerminatePeer(ref: ActorRef)
 
-  final case class ResFullBlockchain(blockchain: Blockchain)
-  final case class ResListPeers(peers: List[String])
+  case class ResFullBlockchain(blockchain: Blockchain)
+  case class ResListTransactions(transactions: List[Transaction])
+  case object ResNewTransaction
+  case object ResNewBLock
+  case class ResListPeers(peers: List[String])
+  case object ResHandshake
+  case object ResSharePeers
+  case object ResRegisterPeer
+  case object ResTerminatePeer
 }
