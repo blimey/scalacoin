@@ -1,7 +1,7 @@
 package scalacoin.mining
 
 import scalacoin.types._
-import scalacoin.types.{Blockchain => BlockchainF}
+import scalacoin.types.{Block => BlockF, Blockchain => BlockchainF}
 
 import glue._
 import glue.prelude._
